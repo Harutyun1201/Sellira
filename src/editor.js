@@ -1,41 +1,45 @@
 import { EditorView, highlightActiveLine, keymap, drawSelection } from '@codemirror/view';
-import { EditorState } from '@codemirror/state';
+import { EditorState, EditorSelection } from '@codemirror/state';
 import {
   defaultKeymap,
   history,
-  historyKeymap,
-  indentWithTab
+  historyKeymap
 } from '@codemirror/commands';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { languages } from '@codemirror/language-data';
 import { syntaxHighlighting, HighlightStyle } from '@codemirror/language';
 import { tags } from '@lezer/highlight';
 
-// ✅ Layout theme for light mode
+// ✅ Matched light theme — visually aligned with oneDark
 const lightTheme = EditorView.theme({
   "&": {
     backgroundColor: "#ffffff",
     color: "#000000",
     height: "100%",
+    fontSize: "13px",
+    fontFamily: "monospace"
   },
   ".cm-content": {
-    fontFamily: "monospace",
-    padding: "12px",
+    fontFamily: "monospace" // ✅ No extra padding
   },
   ".cm-line": {
     lineHeight: "1.6",
   },
+  ".cm-gutters": {
+    backgroundColor: "#ffffff",
+    color: "#aaa",
+    border: "none"
+  }
 }, { dark: false });
 
-// ✅ Safe function to build a HighlightStyle only with defined tags
+// ✅ Utility to safely define highlight styles
 function buildSafeHighlight(rules) {
   return HighlightStyle.define(
-    rules
-      .filter(rule => rule.tag && typeof rule.tag.id !== 'undefined')
+    rules.filter(rule => rule.tag && typeof rule.tag.id !== 'undefined')
   );
 }
 
-// ✅ Styled highlight rules (same logic for both themes)
+// ✅ Shared highlight logic
 const baseHighlightRules = [
   { tag: tags.heading, fontSize: '1.25em', fontWeight: 'bold', color: '#333' },
   { tag: tags.strong, fontWeight: 'bold', color: '#000' },
@@ -46,7 +50,6 @@ const baseHighlightRules = [
   { tag: tags.code, backgroundColor: '#f6f8fa', color: '#d6336c', fontFamily: 'monospace', padding: '2px 4px', borderRadius: '4px' }
 ];
 
-// ✅ Color override for dark mode
 const darkOverrides = {
   heading: '#cdd6f4',
   strong: '#ffffff',
@@ -57,7 +60,6 @@ const darkOverrides = {
   code: '#fab387'
 };
 
-// ✅ Build highlight styles
 const lightHighlight = buildSafeHighlight(baseHighlightRules);
 const darkHighlight = buildSafeHighlight(
   baseHighlightRules.map(rule => {
@@ -66,6 +68,39 @@ const darkHighlight = buildSafeHighlight(
     return override ? { ...rule, color: override } : rule;
   })
 );
+
+// ✅ Tab key: inserts 2 spaces at cursor
+const insertTab = {
+  key: "Tab",
+  run: ({ state, dispatch }) => {
+    const changes = state.changeByRange(range => ({
+      changes: { from: range.from, to: range.to, insert: "  " },
+      range: EditorSelection.cursor(range.from + 2)
+    }));
+    dispatch(state.update(changes, { scrollIntoView: true, userEvent: "input" }));
+    return true;
+  }
+};
+
+// ✅ Shift+Tab: removes 2 spaces before cursor
+const removeTab = {
+  key: "Shift-Tab",
+  run: ({ state, dispatch }) => {
+    const changes = state.changeByRange(range => {
+      const from = range.from;
+      const before = state.doc.sliceString(from - 2, from);
+      if (before === "  ") {
+        return {
+          changes: { from: from - 2, to: from },
+          range: EditorSelection.cursor(from - 2)
+        };
+      }
+      return { range };
+    });
+    dispatch(state.update(changes, { scrollIntoView: true, userEvent: "delete.backward" }));
+    return true;
+  }
+};
 
 export function createEditor(parent, content, isDark, onChange) {
   const filteredKeymap = defaultKeymap.filter(binding => {
@@ -77,7 +112,8 @@ export function createEditor(parent, content, isDark, onChange) {
     drawSelection(),
     history(),
     keymap.of([
-      indentWithTab,
+      insertTab,
+      removeTab,
       ...filteredKeymap,
       ...historyKeymap
     ]),
