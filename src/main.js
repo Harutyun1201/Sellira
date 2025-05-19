@@ -1,4 +1,4 @@
-import { createEditor } from './editor.js';
+import { marked } from 'marked';
 
 const noteList = document.getElementById('noteList');
 const noteTitle = document.getElementById('noteTitle');
@@ -7,11 +7,37 @@ const toggleThemeBtn = document.getElementById('toggleTheme');
 const searchInput = document.getElementById('searchInput');
 const app = document.getElementById('app');
 const contextMenu = document.getElementById('context-menu');
+const editorContainer = document.getElementById('editor');
 
 let notes = JSON.parse(localStorage.getItem('sellira-notes')) || {};
 let currentNote = localStorage.getItem('sellira-current') || 'Home';
 let selectedNote = null;
-let editor;
+let pendingEdit = null;
+
+marked.use({
+  extensions: [{
+    name: 'wikilink',
+    level: 'inline',
+    start(src) {
+      return src.match(/\[\[/)?.index;
+    },
+    tokenizer(src) {
+      const match = /^\[\[([^\]]+)\]\]/.exec(src);
+      if (match) {
+        return {
+          type: 'wikilink',
+          raw: match[0],
+          text: match[1],
+          tokens: [],
+        };
+      }
+    },
+    renderer(token) {
+      const name = token.text;
+      return `<a href="#" class="wikilink" data-target="${name}">${name}</a>`;
+    }
+  }]
+});
 
 function saveNotes() {
   localStorage.setItem('sellira-notes', JSON.stringify(notes));
@@ -22,18 +48,126 @@ function loadNote(name) {
   if (!notes[name]) notes[name] = '';
   currentNote = name;
   noteTitle.textContent = name;
-  updateEditor(notes[name]);
+  renderEditorLines(notes[name]);
+  updateNoteList();
   saveNotes();
 }
 
-function updateEditor(content) {
-  if (editor) editor.destroy();
-  const isDark = app.classList.contains('dark-mode');
-  editor = createEditor(document.getElementById('editor'), content, isDark, (updated) => {
-    notes[currentNote] = updated;
-    saveNotes();
+function renderEditorLines(content) {
+  editorContainer.innerHTML = '';
+  const lines = content.split('\n');
+
+  lines.forEach((line, index) => {
+    const lineDiv = document.createElement('div');
+    lineDiv.className = 'editor-line';
+    lineDiv.dataset.line = index;
+    lineDiv.innerHTML = marked.parse(line || '');
+
+    // Skip editing if clicking on any link
+    lineDiv.addEventListener('mousedown', (e) => {
+      const anchor = e.target.closest('a');
+      if (anchor) {
+        if (!anchor.classList.contains('wikilink')) {
+          anchor.setAttribute('target', '_blank');
+          anchor.setAttribute('rel', 'noopener noreferrer');
+          anchor.setAttribute('href', anchor.getAttribute('href').startsWith('http') ? anchor.getAttribute('href') : 'https://' + anchor.getAttribute('href'));
+        }
+        return;
+      }
+
+      e.preventDefault();
+      const currentEditable = editorContainer.querySelector('[contenteditable="true"]');
+
+      if (currentEditable) {
+        const editedIndex = parseInt(currentEditable.dataset.line);
+        const updatedText = currentEditable.textContent;
+        const updatedLines = notes[currentNote].split('\n');
+        updatedLines[editedIndex] = updatedText;
+        notes[currentNote] = updatedLines.join('\n');
+        saveNotes();
+        pendingEdit = { index, event: e };
+        renderEditorLines(notes[currentNote]);
+      } else {
+        activateLineEdit(index, e);
+      }
+    });
+
+    editorContainer.appendChild(lineDiv);
   });
-  updateNoteList();
+
+  if (pendingEdit) {
+    const { index, event } = pendingEdit;
+    pendingEdit = null;
+    setTimeout(() => activateLineEdit(index, event), 0);
+  }
+
+  // Handle wiki link clicks
+  editorContainer.querySelectorAll('a.wikilink').forEach(link => {
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      const target = e.target.dataset.target;
+      if (notes[target]) {
+        loadNote(target);
+      } else {
+        const create = confirm(`Note "${target}" does not exist. Create it?`);
+        if (create) {
+          notes[target] = '';
+          saveNotes();
+          loadNote(target);
+        }
+      }
+    });
+  });
+}
+
+function activateLineEdit(index, clickEvent) {
+  const original = notes[currentNote].split('\n')[index] || '';
+  const lineDivs = editorContainer.querySelectorAll('.editor-line');
+  const oldDiv = lineDivs[index];
+
+  const editableDiv = document.createElement('div');
+  editableDiv.className = 'editor-line editable';
+  editableDiv.dataset.line = index;
+  editableDiv.contentEditable = true;
+  editableDiv.textContent = original;
+
+  editorContainer.replaceChild(editableDiv, oldDiv);
+
+  setTimeout(() => {
+    editableDiv.focus();
+    const range = document.createRange();
+    const sel = window.getSelection();
+    const offset = getCaretCharacterOffsetFromPoint(clickEvent, editableDiv);
+    range.setStart(editableDiv.firstChild || editableDiv, offset);
+    range.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(range);
+  }, 0);
+
+  editableDiv.addEventListener('blur', () => {
+    const updatedText = editableDiv.textContent;
+    const updatedLines = notes[currentNote].split('\n');
+    updatedLines[index] = updatedText;
+    notes[currentNote] = updatedLines.join('\n');
+    saveNotes();
+    renderEditorLines(notes[currentNote]);
+  });
+}
+
+function getCaretCharacterOffsetFromPoint(event, element) {
+  let range, offset = 0;
+  if (document.caretRangeFromPoint) {
+    range = document.caretRangeFromPoint(event.clientX, event.clientY);
+    if (range && range.startContainer === element.firstChild && range.startOffset != null) {
+      offset = range.startOffset;
+    }
+  } else if (document.caretPositionFromPoint) {
+    const pos = document.caretPositionFromPoint(event.clientX, event.clientY);
+    if (pos && pos.offset != null) {
+      offset = pos.offset;
+    }
+  }
+  return offset;
 }
 
 function renderFilteredNoteList(query) {
@@ -41,7 +175,13 @@ function renderFilteredNoteList(query) {
   Object.keys(notes).forEach(name => {
     if (!query || name.toLowerCase().includes(query)) {
       const li = document.createElement('li');
-      li.textContent = name;
+      if (query) {
+        const regex = new RegExp(`(${query})`, 'gi');
+        li.innerHTML = name.replace(regex, '<mark>$1</mark>');
+      } else {
+        li.textContent = name;
+      }
+
       if (name === currentNote) li.classList.add('active');
       li.onclick = () => loadNote(name);
 
@@ -74,7 +214,7 @@ function setTheme(mode) {
     toggleThemeBtn.textContent = '🌙 Dark Mode';
   }
   localStorage.setItem('theme', mode);
-  updateEditor(notes[currentNote]);
+  renderEditorLines(notes[currentNote]);
 }
 
 toggleThemeBtn.addEventListener('click', () => {
@@ -82,7 +222,7 @@ toggleThemeBtn.addEventListener('click', () => {
   setTheme(newMode);
 });
 
-// ✅ New Note with validation
+// ✅ New Note
 newNoteBtn.addEventListener('click', () => {
   const name = prompt('New note name:')?.trim();
   if (!name) {
@@ -90,19 +230,17 @@ newNoteBtn.addEventListener('click', () => {
     return;
   }
 
-  if (notes[name]) {
+  if (Object.prototype.hasOwnProperty.call(notes, name)) {
     alert(`A note named "${name}" already exists.`);
     return;
   }
 
   notes[name] = '';
+  saveNotes();
   loadNote(name);
 });
 
-searchInput.addEventListener('input', () => {
-  updateNoteList();
-});
-
+// ✅ Ctrl + Alt + N
 document.addEventListener('keydown', (e) => {
   if (e.ctrlKey && e.altKey && e.key.toLowerCase() === 'n') {
     e.preventDefault();
@@ -111,11 +249,14 @@ document.addEventListener('keydown', (e) => {
       alert("Note name cannot be empty.");
       return;
     }
-    if (notes[name]) {
+
+    if (Object.prototype.hasOwnProperty.call(notes, name)) {
       alert(`A note named "${name}" already exists.`);
       return;
     }
+
     notes[name] = '';
+    saveNotes();
     loadNote(name);
   }
 
@@ -126,12 +267,14 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-// Hide context menu when clicking elsewhere
+searchInput.addEventListener('input', () => {
+  updateNoteList();
+});
+
 document.addEventListener('click', () => {
   contextMenu.style.display = 'none';
 });
 
-// Prevent global right-click unless on note
 document.addEventListener('contextmenu', (e) => {
   if (!e.target.closest('#noteList li')) {
     e.preventDefault();
@@ -139,7 +282,7 @@ document.addEventListener('contextmenu', (e) => {
   }
 });
 
-// ✅ Rename note with validation
+// ✅ Rename
 document.getElementById("rename-note").addEventListener("click", () => {
   if (!selectedNote) return;
 
@@ -154,7 +297,7 @@ document.getElementById("rename-note").addEventListener("click", () => {
     return;
   }
 
-  if (notes[newName]) {
+  if (Object.prototype.hasOwnProperty.call(notes, newName)) {
     alert(`A note named "${newName}" already exists.`);
     return;
   }
@@ -163,6 +306,8 @@ document.getElementById("rename-note").addEventListener("click", () => {
   notes[newName] = content;
   delete notes[selectedNote];
 
+  saveNotes();
+
   if (currentNote === selectedNote) {
     loadNote(newName);
   } else {
@@ -170,11 +315,10 @@ document.getElementById("rename-note").addEventListener("click", () => {
   }
 
   selectedNote = null;
-  saveNotes();
   contextMenu.style.display = 'none';
 });
 
-// ✅ Delete note
+// ✅ Delete
 document.getElementById("delete-note").addEventListener("click", () => {
   if (!selectedNote) return;
   const confirmed = confirm(`Are you sure you want to delete "${selectedNote}"?`);
@@ -184,7 +328,6 @@ document.getElementById("delete-note").addEventListener("click", () => {
       currentNote = 'Home';
       if (!notes[currentNote]) notes[currentNote] = '';
     }
-    selectedNote = null;
     saveNotes();
     loadNote(currentNote);
     updateNoteList();
@@ -192,6 +335,24 @@ document.getElementById("delete-note").addEventListener("click", () => {
   contextMenu.style.display = 'none';
 });
 
+// ✅ Handle [[NoteName]] links
+editorContainer.addEventListener('click', (e) => {
+  if (e.target.classList.contains('wikilink')) {
+    const target = e.target.dataset.target;
+    if (notes[target]) {
+      loadNote(target);
+    } else {
+      const create = confirm(`Note "${target}" does not exist. Create it?`);
+      if (create) {
+        notes[target] = '';
+        saveNotes();
+        loadNote(target);
+      }
+    }
+  }
+});
+
+// ✅ Load app state
 const storedTheme = localStorage.getItem('theme') || 'light';
 setTheme(storedTheme);
 loadNote(currentNote);
