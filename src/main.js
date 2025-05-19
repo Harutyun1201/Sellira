@@ -63,7 +63,6 @@ function renderEditorLines(content) {
     lineDiv.dataset.line = index;
     lineDiv.innerHTML = marked.parse(line || '');
 
-    // Skip editing if clicking on any link
     lineDiv.addEventListener('mousedown', (e) => {
       const anchor = e.target.closest('a');
       if (anchor) {
@@ -101,7 +100,6 @@ function renderEditorLines(content) {
     setTimeout(() => activateLineEdit(index, event), 0);
   }
 
-  // Handle wiki link clicks
   editorContainer.querySelectorAll('a.wikilink').forEach(link => {
     link.addEventListener('click', (e) => {
       e.preventDefault();
@@ -222,9 +220,11 @@ toggleThemeBtn.addEventListener('click', () => {
   setTheme(newMode);
 });
 
-// ✅ New Note
+// ✅ New Note — FIXED
 newNoteBtn.addEventListener('click', () => {
-  const name = prompt('New note name:')?.trim();
+  const raw = prompt('New note name:');
+  if (raw === null) return;
+  const name = raw.trim();
   if (!name) {
     alert("Note name cannot be empty.");
     return;
@@ -244,7 +244,9 @@ newNoteBtn.addEventListener('click', () => {
 document.addEventListener('keydown', (e) => {
   if (e.ctrlKey && e.altKey && e.key.toLowerCase() === 'n') {
     e.preventDefault();
-    const name = prompt('New note name:')?.trim();
+    const raw = prompt('New note name:');
+    if (raw === null) return;
+    const name = raw.trim();
     if (!name) {
       alert("Note name cannot be empty.");
       return;
@@ -282,11 +284,17 @@ document.addEventListener('contextmenu', (e) => {
   }
 });
 
-// ✅ Rename
+// ✅ Rename — FIXED
 document.getElementById("rename-note").addEventListener("click", () => {
   if (!selectedNote) return;
 
-  const newName = prompt("Enter the new name for the note:", selectedNote)?.trim();
+  const raw = prompt("Enter the new name for the note:", selectedNote);
+  if (raw === null) {
+    contextMenu.style.display = 'none';
+    return;
+  }
+
+  const newName = raw.trim();
   if (!newName) {
     alert("Note name cannot be empty.");
     return;
@@ -335,7 +343,6 @@ document.getElementById("delete-note").addEventListener("click", () => {
   contextMenu.style.display = 'none';
 });
 
-// ✅ Handle [[NoteName]] links
 editorContainer.addEventListener('click', (e) => {
   if (e.target.classList.contains('wikilink')) {
     const target = e.target.dataset.target;
@@ -352,7 +359,7 @@ editorContainer.addEventListener('click', (e) => {
   }
 });
 
-// ✅ Load app state
+// ✅ Load
 const storedTheme = localStorage.getItem('theme') || 'light';
 setTheme(storedTheme);
 loadNote(currentNote);
