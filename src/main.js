@@ -376,6 +376,19 @@ document.getElementById("delete-note").addEventListener("click", () => {
   contextMenu.style.display = 'none';
 });
 
+window.addEventListener('beforeunload', () => {
+  const editable = editorContainer.querySelector('[contenteditable="true"]');
+  if (editable) {
+    const index = parseInt(editable.dataset.line);
+    const updatedText = editable.textContent;
+    const updatedLines = notes[currentNote].split('\n');
+    updatedLines[index] = updatedText;
+    notes[currentNote] = updatedLines.join('\n');
+    saveNotes();
+  }
+});
+
+
 // ✅ Load
 const storedTheme = localStorage.getItem('theme') || 'light';
 setTheme(storedTheme);
