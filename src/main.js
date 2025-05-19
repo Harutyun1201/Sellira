@@ -45,7 +45,7 @@ function saveNotes() {
 }
 
 function loadNote(name) {
-  if (!notes[name]) notes[name] = '';
+  if (!notes[name] || notes[name].trim() === '✍️ start typing...') notes[name] = '';
   currentNote = name;
   noteTitle.textContent = name;
   renderEditorLines(notes[name]);
@@ -56,21 +56,41 @@ function loadNote(name) {
 function renderEditorLines(content) {
   editorContainer.innerHTML = '';
   const isEmpty = content.trim() === '';
-  const lines = isEmpty ? [''] : content.split('\n');
+  const lines = isEmpty ? [] : content.split('\n');
+
+  if (lines.length === 0) {
+    const placeholderDiv = document.createElement('div');
+    placeholderDiv.className = 'editor-line placeholder';
+    placeholderDiv.dataset.line = 0;
+    placeholderDiv.textContent = '✍️ start typing...';
+    placeholderDiv.contentEditable = true;
+
+    placeholderDiv.addEventListener('blur', () => {
+      const value = placeholderDiv.textContent.trim();
+      if (value !== '' && value !== '✍️ start typing...') {
+        notes[currentNote] = value;
+        saveNotes();
+        renderEditorLines(notes[currentNote]);
+      }
+    });
+
+    placeholderDiv.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      placeholderDiv.textContent = '';
+      placeholderDiv.classList.remove('placeholder');
+      placeholderDiv.classList.add('editable');
+      setTimeout(() => placeholderDiv.focus(), 0);
+    });
+
+    editorContainer.appendChild(placeholderDiv);
+    return;
+  }
 
   lines.forEach((line, index) => {
-    const isPlaceholder = isEmpty && index === 0;
-
     const lineDiv = document.createElement('div');
-    lineDiv.className = 'editor-line' + (isPlaceholder ? ' placeholder' : '');
+    lineDiv.className = 'editor-line';
     lineDiv.dataset.line = index;
-
-    if (isPlaceholder) {
-      lineDiv.textContent = '✍️ start typing...';
-      lineDiv.contentEditable = true;
-    } else {
-      lineDiv.innerHTML = marked.parse(line || '');
-    }
+    lineDiv.innerHTML = marked.parse(line || '');
 
     lineDiv.addEventListener('mousedown', (e) => {
       const anchor = e.target.closest('a');
@@ -84,29 +104,6 @@ function renderEditorLines(content) {
       }
 
       e.preventDefault();
-
-      if (isPlaceholder) {
-        // Convert to editable
-        lineDiv.textContent = '';
-        lineDiv.classList.remove('placeholder');
-        lineDiv.classList.add('editable');
-        lineDiv.contentEditable = true;
-
-        // Restore placeholder if no input
-        lineDiv.addEventListener('blur', () => {
-          const value = lineDiv.textContent.trim();
-          if (value === '') {
-            renderEditorLines('');
-          } else {
-            notes[currentNote] = value;
-            saveNotes();
-            renderEditorLines(notes[currentNote]);
-          }
-        });
-
-        setTimeout(() => lineDiv.focus(), 0);
-        return;
-      }
 
       const currentEditable = editorContainer.querySelector('[contenteditable="true"]');
       if (currentEditable) {
@@ -179,8 +176,10 @@ function activateLineEdit(index, clickEvent) {
     const updatedText = editableDiv.textContent;
     const updatedLines = notes[currentNote].split('\n');
     updatedLines[index] = updatedText;
+    if (updatedText && updatedText !== '✍️ start typing...') {
     notes[currentNote] = updatedLines.join('\n');
     saveNotes();
+  }
     renderEditorLines(notes[currentNote]);
   });
 }
@@ -380,11 +379,13 @@ window.addEventListener('beforeunload', () => {
   const editable = editorContainer.querySelector('[contenteditable="true"]');
   if (editable) {
     const index = parseInt(editable.dataset.line);
-    const updatedText = editable.textContent;
+    const updatedText = editable.textContent.trim();
     const updatedLines = notes[currentNote].split('\n');
     updatedLines[index] = updatedText;
+    if (updatedText && updatedText !== '✍️ start typing...') {
     notes[currentNote] = updatedLines.join('\n');
     saveNotes();
+  }
   }
 });
 
