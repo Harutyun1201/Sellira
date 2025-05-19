@@ -167,23 +167,40 @@ function activateLineEdit(index, clickEvent) {
 
   editorContainer.replaceChild(editableDiv, oldDiv);
 
+  let skipBlur = false;
+
   setTimeout(() => {
-    editableDiv.focus();
-    const range = document.createRange();
     const sel = window.getSelection();
-    const offset = getCaretCharacterOffsetFromPoint(clickEvent, editableDiv);
-    range.setStart(editableDiv.firstChild || editableDiv, offset);
+    const range = document.createRange();
+
+    if (clickEvent.__caretOffset != null) {
+      const textNode = editableDiv.firstChild;
+      const offset = Math.min(clickEvent.__caretOffset, textNode?.length || 0);
+
+      if (textNode) {
+        range.setStart(textNode, offset);
+      } else {
+        range.setStart(editableDiv, 0); // fallback for empty line
+      }
+    } else {
+      const offset = getCaretCharacterOffsetFromPoint(clickEvent, editableDiv);
+      range.setStart(editableDiv.firstChild || editableDiv, offset);
+    }
+
     range.collapse(true);
     sel.removeAllRanges();
     sel.addRange(range);
   }, 0);
 
   editableDiv.addEventListener('keydown', (e) => {
+    const selection = window.getSelection();
+    const range = selection.getRangeAt(0);
+    const cursorPos = range.startOffset;
+
+    // ✅ ENTER
     if (e.key === 'Enter') {
       e.preventDefault();
 
-      const selection = window.getSelection();
-      const cursorPos = selection.getRangeAt(0).startOffset;
       const text = editableDiv.textContent;
       const before = text.slice(0, cursorPos);
       const after = text.slice(cursorPos);
@@ -194,34 +211,50 @@ function activateLineEdit(index, clickEvent) {
       notes[currentNote] = updatedLines.join('\n');
       saveNotes();
 
-      // Create and insert new editable line
-      const newEditableDiv = document.createElement('div');
-      newEditableDiv.className = 'editor-line editable';
-      newEditableDiv.dataset.line = index + 1;
-      newEditableDiv.contentEditable = true;
-      newEditableDiv.textContent = after;
-
-      // Insert new line directly after current editableDiv
-      if (editableDiv.nextSibling) {
-        editorContainer.insertBefore(newEditableDiv, editableDiv.nextSibling);
-      } else {
-        editorContainer.appendChild(newEditableDiv);
-      }
-
-      // Update current line text
       editableDiv.textContent = before;
 
-      // Remove old event listeners from editableDiv (by replacing it)
       renderEditorLines(notes[currentNote]);
-
-      // Activate the new line
       setTimeout(() => {
         activateLineEdit(index + 1, { clientX: 0, clientY: 0 });
+      }, 0);
+    }
+
+    // ✅ BACKSPACE at start of line (no skipping empty lines)
+    if (e.key === 'Backspace' && cursorPos === 0 && index > 0) {
+      e.preventDefault();
+
+      const updatedLines = notes[currentNote].split('\n');
+      const updatedText = editableDiv.textContent;
+      updatedLines[index] = updatedText;
+
+      const currentLine = updatedLines[index];
+      const previousLine = updatedLines[index - 1];
+
+      const offsetAfterMerge = previousLine.length || 0;
+
+      updatedLines[index - 1] = previousLine + currentLine;
+      updatedLines.splice(index, 1);
+      notes[currentNote] = updatedLines.join('\n');
+      saveNotes();
+
+      skipBlur = true;
+      editableDiv.onblur = null;
+      editableDiv.remove();
+
+      renderEditorLines(notes[currentNote]);
+
+      setTimeout(() => {
+        const allLines = notes[currentNote].split('\n');
+        const targetLine = index - 1;
+        const offset = allLines[targetLine]?.length || 0;
+        activateLineEdit(targetLine, { __caretOffset: offset });
       }, 0);
     }
   });
 
   editableDiv.addEventListener('blur', () => {
+    if (skipBlur) return;
+
     const updatedText = editableDiv.textContent;
     const updatedLines = notes[currentNote].split('\n');
     updatedLines[index] = updatedText;
