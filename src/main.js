@@ -55,13 +55,22 @@ function loadNote(name) {
 
 function renderEditorLines(content) {
   editorContainer.innerHTML = '';
-  const lines = content.split('\n');
+  const isEmpty = content.trim() === '';
+  const lines = isEmpty ? [''] : content.split('\n');
 
   lines.forEach((line, index) => {
+    const isPlaceholder = isEmpty && index === 0;
+
     const lineDiv = document.createElement('div');
-    lineDiv.className = 'editor-line';
+    lineDiv.className = 'editor-line' + (isPlaceholder ? ' placeholder' : '');
     lineDiv.dataset.line = index;
-    lineDiv.innerHTML = marked.parse(line || '');
+
+    if (isPlaceholder) {
+      lineDiv.textContent = '✍️ start typing...';
+      lineDiv.contentEditable = true;
+    } else {
+      lineDiv.innerHTML = marked.parse(line || '');
+    }
 
     lineDiv.addEventListener('mousedown', (e) => {
       const anchor = e.target.closest('a');
@@ -75,8 +84,31 @@ function renderEditorLines(content) {
       }
 
       e.preventDefault();
-      const currentEditable = editorContainer.querySelector('[contenteditable="true"]');
 
+      if (isPlaceholder) {
+        // Convert to editable
+        lineDiv.textContent = '';
+        lineDiv.classList.remove('placeholder');
+        lineDiv.classList.add('editable');
+        lineDiv.contentEditable = true;
+
+        // Restore placeholder if no input
+        lineDiv.addEventListener('blur', () => {
+          const value = lineDiv.textContent.trim();
+          if (value === '') {
+            renderEditorLines('');
+          } else {
+            notes[currentNote] = value;
+            saveNotes();
+            renderEditorLines(notes[currentNote]);
+          }
+        });
+
+        setTimeout(() => lineDiv.focus(), 0);
+        return;
+      }
+
+      const currentEditable = editorContainer.querySelector('[contenteditable="true"]');
       if (currentEditable) {
         const editedIndex = parseInt(currentEditable.dataset.line);
         const updatedText = currentEditable.textContent;
@@ -100,14 +132,13 @@ function renderEditorLines(content) {
     setTimeout(() => activateLineEdit(index, event), 0);
   }
 
-  // ✅ Handle [[NoteName]] links with stopImmediatePropagation
   editorContainer.querySelectorAll('a.wikilink').forEach(link => {
     link.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopImmediatePropagation();
       const target = e.target.dataset.target;
-        if (Object.prototype.hasOwnProperty.call(notes, target)) {
-		loadNote(target);
+      if (Object.prototype.hasOwnProperty.call(notes, target)) {
+        loadNote(target);
       } else {
         const create = confirm(`Note "${target}" does not exist. Create it?`);
         if (create) {
