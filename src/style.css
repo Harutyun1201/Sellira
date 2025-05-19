@@ -277,4 +277,25 @@ mark {
   padding: 0 2px;
   border-radius: 2px;
 }
+#context-menu {
+  position: absolute;
+  display: none;
+  z-index: 1000;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  list-style: none;
+  padding: 4px 0;
+  font-family: sans-serif;
+  font-size: 14px;
+}
 
+#context-menu li {
+  padding: 8px 16px;
+  cursor: pointer;
+}
+
+#context-menu li:hover {
+  background-color: #f0f0f0;
+}
