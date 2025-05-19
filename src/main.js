@@ -58,21 +58,13 @@ function renderEditorLines(content) {
   const isEmpty = content.trim() === '';
   const lines = isEmpty ? [] : content.split('\n');
 
+  // Show placeholder if note is empty
   if (lines.length === 0) {
     const placeholderDiv = document.createElement('div');
     placeholderDiv.className = 'editor-line placeholder';
     placeholderDiv.dataset.line = 0;
     placeholderDiv.textContent = '✍️ start typing...';
     placeholderDiv.contentEditable = true;
-
-    placeholderDiv.addEventListener('blur', () => {
-      const value = placeholderDiv.textContent.trim();
-      if (value !== '' && value !== '✍️ start typing...') {
-        notes[currentNote] = value;
-        saveNotes();
-        renderEditorLines(notes[currentNote]);
-      }
-    });
 
     placeholderDiv.addEventListener('mousedown', (e) => {
       e.preventDefault();
@@ -82,10 +74,22 @@ function renderEditorLines(content) {
       setTimeout(() => placeholderDiv.focus(), 0);
     });
 
+    placeholderDiv.addEventListener('blur', () => {
+      const value = placeholderDiv.textContent.trim();
+      if (value === '' || value === '✍️ start typing...') {
+        renderEditorLines('');
+      } else {
+        notes[currentNote] = value;
+        saveNotes();
+        renderEditorLines(notes[currentNote]);
+      }
+    });
+
     editorContainer.appendChild(placeholderDiv);
     return;
   }
 
+  // Render all non-empty lines
   lines.forEach((line, index) => {
     const lineDiv = document.createElement('div');
     lineDiv.className = 'editor-line';
@@ -123,12 +127,14 @@ function renderEditorLines(content) {
     editorContainer.appendChild(lineDiv);
   });
 
+  // Reapply pending edit if any
   if (pendingEdit) {
     const { index, event } = pendingEdit;
     pendingEdit = null;
     setTimeout(() => activateLineEdit(index, event), 0);
   }
 
+  // Enable navigation for wikilinks
   editorContainer.querySelectorAll('a.wikilink').forEach(link => {
     link.addEventListener('click', (e) => {
       e.preventDefault();
