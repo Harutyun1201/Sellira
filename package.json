@@ -7,13 +7,6 @@
     "vite": "^6.3.5"
   },
   "dependencies": {
-    "@codemirror/commands": "^6.8.1",
-    "@codemirror/gutter": "^0.19.9",
-    "@codemirror/history": "^0.19.2",
-    "@codemirror/lang-markdown": "^6.3.2",
-    "@codemirror/state": "^6.5.2",
-    "@codemirror/theme-one-dark": "^6.1.2",
-    "@codemirror/view": "^6.36.8",
     "marked": "^15.0.11"
   },
   "name": "sellira",
