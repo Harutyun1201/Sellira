@@ -178,14 +178,55 @@ function activateLineEdit(index, clickEvent) {
     sel.addRange(range);
   }, 0);
 
+  editableDiv.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+
+      const selection = window.getSelection();
+      const cursorPos = selection.getRangeAt(0).startOffset;
+      const text = editableDiv.textContent;
+      const before = text.slice(0, cursorPos);
+      const after = text.slice(cursorPos);
+
+      const updatedLines = notes[currentNote].split('\n');
+      updatedLines[index] = before;
+      updatedLines.splice(index + 1, 0, after);
+      notes[currentNote] = updatedLines.join('\n');
+      saveNotes();
+
+      // Create and insert new editable line
+      const newEditableDiv = document.createElement('div');
+      newEditableDiv.className = 'editor-line editable';
+      newEditableDiv.dataset.line = index + 1;
+      newEditableDiv.contentEditable = true;
+      newEditableDiv.textContent = after;
+
+      // Insert new line directly after current editableDiv
+      if (editableDiv.nextSibling) {
+        editorContainer.insertBefore(newEditableDiv, editableDiv.nextSibling);
+      } else {
+        editorContainer.appendChild(newEditableDiv);
+      }
+
+      // Update current line text
+      editableDiv.textContent = before;
+
+      // Remove old event listeners from editableDiv (by replacing it)
+      renderEditorLines(notes[currentNote]);
+
+      // Activate the new line
+      setTimeout(() => {
+        activateLineEdit(index + 1, { clientX: 0, clientY: 0 });
+      }, 0);
+    }
+  });
+
   editableDiv.addEventListener('blur', () => {
     const updatedText = editableDiv.textContent;
     const updatedLines = notes[currentNote].split('\n');
     updatedLines[index] = updatedText;
-    if (updatedText && updatedText !== '✍️ start typing...') {
     notes[currentNote] = updatedLines.join('\n');
     saveNotes();
-  }
     renderEditorLines(notes[currentNote]);
   });
 }
