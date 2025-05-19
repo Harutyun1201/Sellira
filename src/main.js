@@ -100,12 +100,14 @@ function renderEditorLines(content) {
     setTimeout(() => activateLineEdit(index, event), 0);
   }
 
+  // ✅ Handle [[NoteName]] links with stopImmediatePropagation
   editorContainer.querySelectorAll('a.wikilink').forEach(link => {
     link.addEventListener('click', (e) => {
       e.preventDefault();
+      e.stopImmediatePropagation();
       const target = e.target.dataset.target;
-      if (notes[target]) {
-        loadNote(target);
+        if (Object.prototype.hasOwnProperty.call(notes, target)) {
+		loadNote(target);
       } else {
         const create = confirm(`Note "${target}" does not exist. Create it?`);
         if (create) {
@@ -220,7 +222,7 @@ toggleThemeBtn.addEventListener('click', () => {
   setTheme(newMode);
 });
 
-// ✅ New Note — FIXED
+// ✅ New Note
 newNoteBtn.addEventListener('click', () => {
   const raw = prompt('New note name:');
   if (raw === null) return;
@@ -284,7 +286,7 @@ document.addEventListener('contextmenu', (e) => {
   }
 });
 
-// ✅ Rename — FIXED
+// ✅ Rename
 document.getElementById("rename-note").addEventListener("click", () => {
   if (!selectedNote) return;
 
@@ -341,22 +343,6 @@ document.getElementById("delete-note").addEventListener("click", () => {
     updateNoteList();
   }
   contextMenu.style.display = 'none';
-});
-
-editorContainer.addEventListener('click', (e) => {
-  if (e.target.classList.contains('wikilink')) {
-    const target = e.target.dataset.target;
-    if (notes[target]) {
-      loadNote(target);
-    } else {
-      const create = confirm(`Note "${target}" does not exist. Create it?`);
-      if (create) {
-        notes[target] = '';
-        saveNotes();
-        loadNote(target);
-      }
-    }
-  }
 });
 
 // ✅ Load
