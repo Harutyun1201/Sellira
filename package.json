@@ -1,7 +1,9 @@
 {
   "type": "module",
   "scripts": {
-    "dev": "vite"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
   },
   "devDependencies": {
     "vite": "^6.3.5"
@@ -11,9 +13,9 @@
   },
   "name": "sellira",
   "version": "1.0.0",
-  "main": "vite.config.js",
   "keywords": [],
-  "author": "",
+  "author": "Harutyun Grigoryan",
   "license": "ISC",
-  "description": ""
+  "description": "Sellira – a minimalist markdown note-taking app"
 }
+
