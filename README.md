@@ -41,7 +41,6 @@ Sellira/
 ├── README.md
 ├── package.json
 ├── package-lock.json
-└── node_modules/
 
 ```
 
