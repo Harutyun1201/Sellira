@@ -183,14 +183,15 @@ function activateLineEdit(index, clickEvent) {
     const range = document.createRange();
 
     if (clickEvent.__caretOffset != null) {
-      const textNode = editableDiv.firstChild;
-      const offset = Math.min(clickEvent.__caretOffset, textNode?.length || 0);
+      let textNode = editableDiv.firstChild;
 
-      if (textNode) {
-        range.setStart(textNode, offset);
-      } else {
-        range.setStart(editableDiv, 0); // fallback for empty line
+      if (!textNode || textNode.nodeType !== Node.TEXT_NODE) {
+        textNode = document.createTextNode('');
+        editableDiv.appendChild(textNode);
       }
+
+      const offset = Math.min(clickEvent.__caretOffset, textNode.length);
+      range.setStart(textNode, offset);
     } else {
       const offset = getCaretCharacterOffsetFromPoint(clickEvent, editableDiv);
       range.setStart(editableDiv.firstChild || editableDiv, offset);
@@ -228,7 +229,7 @@ function activateLineEdit(index, clickEvent) {
       }, 0);
     }
 
-    // ✅ BACKSPACE at start of line (no skipping empty lines)
+    // ✅ BACKSPACE at start
     if (e.key === 'Backspace' && cursorPos === 0 && index > 0) {
       e.preventDefault();
 
@@ -239,9 +240,10 @@ function activateLineEdit(index, clickEvent) {
       const currentLine = updatedLines[index];
       const previousLine = updatedLines[index - 1];
 
-      const offsetAfterMerge = previousLine.length || 0;
+      const merged = previousLine + currentLine;
+      const offsetAfterMerge = merged.length - currentLine.length;
 
-      updatedLines[index - 1] = previousLine + currentLine;
+      updatedLines[index - 1] = merged;
       updatedLines.splice(index, 1);
       notes[currentNote] = updatedLines.join('\n');
       saveNotes();
@@ -253,10 +255,7 @@ function activateLineEdit(index, clickEvent) {
       renderEditorLines(notes[currentNote]);
 
       setTimeout(() => {
-        const allLines = notes[currentNote].split('\n');
-        const targetLine = index - 1;
-        const offset = allLines[targetLine]?.length || 0;
-        activateLineEdit(targetLine, { __caretOffset: offset });
+        activateLineEdit(index - 1, { __caretOffset: offsetAfterMerge });
       }, 0);
     }
   });
