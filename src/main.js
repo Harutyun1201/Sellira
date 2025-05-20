@@ -45,20 +45,40 @@ function saveNotes() {
 }
 
 function loadNote(name) {
-  if (!notes[name] || notes[name].trim() === '✍️ start typing...') notes[name] = '';
+  // 🧼 Blur anything currently focused (editable div, etc.)
+  if (document.activeElement instanceof HTMLElement) {
+    document.activeElement.blur();
+  }
+
+  // 🧼 Clear selection to prevent old range issues
+  const selection = window.getSelection();
+  if (selection) selection.removeAllRanges();
+
+  // 🧼 Clean empty placeholder
+  if (!notes[name] || notes[name].trim() === '✍️  start typing...') {
+    notes[name] = '';
+  }
+
   currentNote = name;
   noteTitle.textContent = name;
-  renderEditorLines(notes[name]);
-  updateNoteList();
-  saveNotes();
+
+  renderEditorLines(notes[name]);  // Render clean state
+  updateNoteList();                // Update list if needed
+  saveNotes();                     // Persist
 }
 
 function renderEditorLines(content) {
+  // 🧼 Full reset of editor state
   editorContainer.innerHTML = '';
+  if (document.activeElement instanceof HTMLElement) {
+    document.activeElement.blur();
+  }
+  const selection = window.getSelection();
+  if (selection) selection.removeAllRanges();
+
   const isEmpty = content.trim() === '';
   const lines = isEmpty ? [] : content.split('\n');
 
-  // ✅ Show placeholder if note is empty
   if (lines.length === 0) {
     const placeholderDiv = document.createElement('div');
     placeholderDiv.className = 'editor-line placeholder';
@@ -72,7 +92,6 @@ function renderEditorLines(content) {
       placeholderDiv.classList.remove('placeholder');
       placeholderDiv.classList.add('editable');
 
-      // ✅ Immediately convert to real editor line
       setTimeout(() => {
         activateLineEdit(0, e);
       }, 0);
@@ -93,7 +112,6 @@ function renderEditorLines(content) {
     return;
   }
 
-  // ✅ Render all non-empty lines
   lines.forEach((line, index) => {
     const lineDiv = document.createElement('div');
     lineDiv.className = 'editor-line';
@@ -136,14 +154,12 @@ function renderEditorLines(content) {
     editorContainer.appendChild(lineDiv);
   });
 
-  // ✅ Reapply pending edit if any
   if (pendingEdit) {
     const { index, event } = pendingEdit;
     pendingEdit = null;
     setTimeout(() => activateLineEdit(index, event), 0);
   }
 
-  // ✅ Enable navigation for wikilinks
   editorContainer.querySelectorAll('a.wikilink').forEach(link => {
     link.addEventListener('click', (e) => {
       e.preventDefault();
