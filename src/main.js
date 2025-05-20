@@ -58,7 +58,7 @@ function renderEditorLines(content) {
   const isEmpty = content.trim() === '';
   const lines = isEmpty ? [] : content.split('\n');
 
-  // Show placeholder if note is empty
+  // ✅ Show placeholder if note is empty
   if (lines.length === 0) {
     const placeholderDiv = document.createElement('div');
     placeholderDiv.className = 'editor-line placeholder';
@@ -71,7 +71,11 @@ function renderEditorLines(content) {
       placeholderDiv.textContent = '';
       placeholderDiv.classList.remove('placeholder');
       placeholderDiv.classList.add('editable');
-      setTimeout(() => placeholderDiv.focus(), 0);
+
+      // ✅ Immediately convert to real editor line
+      setTimeout(() => {
+        activateLineEdit(0, e);
+      }, 0);
     });
 
     placeholderDiv.addEventListener('blur', () => {
@@ -89,7 +93,7 @@ function renderEditorLines(content) {
     return;
   }
 
-  // Render all non-empty lines
+  // ✅ Render all non-empty lines
   lines.forEach((line, index) => {
     const lineDiv = document.createElement('div');
     lineDiv.className = 'editor-line';
@@ -102,7 +106,12 @@ function renderEditorLines(content) {
         if (!anchor.classList.contains('wikilink')) {
           anchor.setAttribute('target', '_blank');
           anchor.setAttribute('rel', 'noopener noreferrer');
-          anchor.setAttribute('href', anchor.getAttribute('href').startsWith('http') ? anchor.getAttribute('href') : 'https://' + anchor.getAttribute('href'));
+          anchor.setAttribute(
+            'href',
+            anchor.getAttribute('href').startsWith('http')
+              ? anchor.getAttribute('href')
+              : 'https://' + anchor.getAttribute('href')
+          );
         }
         return;
       }
@@ -127,14 +136,14 @@ function renderEditorLines(content) {
     editorContainer.appendChild(lineDiv);
   });
 
-  // Reapply pending edit if any
+  // ✅ Reapply pending edit if any
   if (pendingEdit) {
     const { index, event } = pendingEdit;
     pendingEdit = null;
     setTimeout(() => activateLineEdit(index, event), 0);
   }
 
-  // Enable navigation for wikilinks
+  // ✅ Enable navigation for wikilinks
   editorContainer.querySelectorAll('a.wikilink').forEach(link => {
     link.addEventListener('click', (e) => {
       e.preventDefault();
