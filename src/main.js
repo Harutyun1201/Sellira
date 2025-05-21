@@ -135,9 +135,6 @@ function renderEditorLines(content) {
 
     placeholderDiv.addEventListener('mousedown', (e) => {
       e.preventDefault();
-      placeholderDiv.textContent = '';
-      placeholderDiv.classList.remove('placeholder');
-      placeholderDiv.classList.add('editable');
       setTimeout(() => activateLineEdit(0, e), 0);
     });
 
