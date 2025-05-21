@@ -9,8 +9,38 @@ const app = document.getElementById('app');
 const contextMenu = document.getElementById('context-menu');
 const editorContainer = document.getElementById('editor');
 
-let notes = JSON.parse(localStorage.getItem('sellira-notes')) || {};
-let currentNote = localStorage.getItem('sellira-current') || 'Home';
+let notes = JSON.parse(localStorage.getItem('sellira-notes'));
+let currentNote = localStorage.getItem('sellira-current');
+
+if (!notes) {
+  notes = {
+    "Manual": `# 📘 Welcome to Sellira
+
+Sellira is a minimalist, Markdown-based note-taking app. Here's how to get started:
+
+## ✍️ Creating Notes
+- Press **Ctrl + Alt + N** or click the **New Note** button.
+- Name your note and start typing!
+
+## 🔗 Linking Notes
+- Use Obsidian-style links: \`[[Note Name]]\`
+
+## 🎨 Themes
+- Toggle between light and dark mode using the button on top.
+
+## 🔍 Search
+- Use **Ctrl + /** to focus the search bar and filter notes quickly.
+
+## 📌 Tip
+- Notes are saved automatically and stored in your browser (offline friendly).
+
+Happy writing! ✨`
+  };
+  currentNote = "Manual";
+  localStorage.setItem('sellira-notes', JSON.stringify(notes));
+  localStorage.setItem('sellira-current', currentNote);
+}
+
 let selectedNote = null;
 let pendingEdit = null;
 
@@ -68,6 +98,7 @@ function loadNote(name) {
 }
 
 function renderEditorLines(content) {
+  content = content || '';
   // 🧼 Full reset of editor state
   editorContainer.innerHTML = '';
   if (document.activeElement instanceof HTMLElement) {
@@ -78,6 +109,22 @@ function renderEditorLines(content) {
 
   const isEmpty = content.trim() === '';
   const lines = isEmpty ? [] : content.split('\n');
+
+  
+  
+  
+  if (Object.keys(notes).length === 0 || !currentNote || !(currentNote in notes)) {
+    editorContainer.innerHTML = `
+      <div class="editor-empty">
+        📝 No notes found.<br/>
+        Click <strong>“New Note”</strong> or press <strong>Ctrl + Alt + N</strong> to get started.
+      </div>
+    `;
+    return;
+  }
+
+
+  
 
   if (lines.length === 0) {
     const placeholderDiv = document.createElement('div');
@@ -91,10 +138,7 @@ function renderEditorLines(content) {
       placeholderDiv.textContent = '';
       placeholderDiv.classList.remove('placeholder');
       placeholderDiv.classList.add('editable');
-
-      setTimeout(() => {
-        activateLineEdit(0, e);
-      }, 0);
+      setTimeout(() => activateLineEdit(0, e), 0);
     });
 
     placeholderDiv.addEventListener('blur', () => {
@@ -112,7 +156,7 @@ function renderEditorLines(content) {
     return;
   }
 
-  lines.forEach((line, index) => {
+lines.forEach((line, index) => {
     const lineDiv = document.createElement('div');
     lineDiv.className = 'editor-line';
     lineDiv.dataset.line = index;
@@ -469,9 +513,13 @@ document.getElementById("delete-note").addEventListener("click", () => {
   if (confirmed) {
     delete notes[selectedNote];
     if (currentNote === selectedNote) {
-      currentNote = 'Home';
-      if (!notes[currentNote]) notes[currentNote] = '';
-    }
+  const remainingNotes = Object.keys(notes).filter(n => n !== selectedNote);
+  if (remainingNotes.length > 0) {
+    currentNote = remainingNotes.includes("Manual") ? "Manual" : remainingNotes[0];
+  } else {
+    currentNote = '';
+  }
+}
     saveNotes();
     loadNote(currentNote);
     updateNoteList();
