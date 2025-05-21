@@ -18,15 +18,23 @@ if (!notes) {
 
 Sellira is a minimalist, Markdown-based note-taking app. Here's how to get started:
 
-## ✍️ Creating Notes
+## ✍️  Creating Notes
 - Press **Ctrl + Alt + N** or click the **New Note** button.
 - Name your note and start typing!
 
+## ✏️ Renaming Notes
+- Right-click the note title in the sidebar and select **Rename**.
+- Enter the new name and press **Enter** to save.
+
+## 🗑️ Deleting Notes
+- Right-click the note title in the sidebar and select **Delete**.
+- Confirm the deletion when prompted.
+
 ## 🔗 Linking Notes
-- Use Obsidian-style links: \`[[Note Name]]\`
+- Use \`[[Note Name]]\` syntax to link the notes
 
 ## 🎨 Themes
-- Toggle between light and dark mode using the button on top.
+- Toggle between light and dark mode using the \`☀️  Light Mode / 🌙 Dark Mode\` button.
 
 ## 🔍 Search
 - Use **Ctrl + /** to focus the search bar and filter notes quickly.
@@ -34,7 +42,7 @@ Sellira is a minimalist, Markdown-based note-taking app. Here's how to get start
 ## 📌 Tip
 - Notes are saved automatically and stored in your browser (offline friendly).
 
-Happy writing! ✨`
+**Think. Write. Link. ✨**`
   };
   currentNote = "Manual";
   localStorage.setItem('sellira-notes', JSON.stringify(notes));

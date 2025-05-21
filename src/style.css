@@ -167,30 +167,13 @@ main#mainContent {
 /* ===============================
    Editor Lines
 ================================= */
-.editor-line {
-  min-height: 1.8em;
-  line-height: 1.6;
-  padding: 2px 4px;
-  width: 800px;
-  box-sizing: border-box;
-  background-color: transparent;
-  color: var(--text);
-}
 
-.editor-line:hover {
-  background-color: rgba(0, 0, 0, 0.03);
-}
 
-.editor-line.editable:focus {
-  outline: none;
-  border: none;
-}
 
-.editor-line.placeholder {
-  color: var(--text);
-  opacity: 0.5;
-  font-style: italic;
-}
+
+
+
+
 
 /* ===============================
    Markdown Links
@@ -289,8 +272,39 @@ mark {
   }
 
   .note-editor,
-  .editor-line {
-    width: 100%;
-  }
+  
+}
+
+/* ========================================
+   Editor Interaction Enhancements
+========================================== */
+
+/* Line Hover Highlighting */
+.light-mode .editor-line:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+.dark-mode .editor-line:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Editing line (contenteditable focus) */
+.editor-line[contenteditable="true"]:focus {
+  outline: none;
+  border: none;
+}
+
+/* Ensure caret shows in new/empty lines */
+.editor-line:empty::before {
+  content: "\200b"; /* Zero-width space to make caret appear */
+  white-space: pre;
+}
+.editor-line {
+  line-height: 2em;
+  margin: 0;
+}
+
+.editor-line * {
+  margin-top: 5px;
+  margin-bottom: 1px;
 }
 
