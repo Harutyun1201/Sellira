@@ -4,6 +4,8 @@
 
 ---
 
+![Sellira Welcome Page](/Images/Sellira_Welcome_Page.png)
+
 ## 🚀 Features
 
 - **Multi-note Management**  
@@ -37,6 +39,8 @@ Sellira/
 ├── src/
 │   ├── main.js
 │   └── style.css
+├── Images/
+│   ├── Sellira_Welcome_Page.png
 ├── LICENSE
 ├── README.md
 ├── package.json
