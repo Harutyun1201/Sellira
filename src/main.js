@@ -103,15 +103,25 @@ document.addEventListener('mouseup', (e) => {
   }, 0);
 });
 
-function saveNotes() {
+let lastGraphHash = "";
+
+function saveNotes(options = {}) {
   localStorage.setItem('sellira-notes', JSON.stringify(notes));
   localStorage.setItem('sellira-current', currentNote);
-  renderGraph();
+
+  if (!options.skipGraphUpdate) {
+    // Prevent unnecessary graph redraws
+    const newHash = JSON.stringify(extractGraphData());
+    if (newHash !== lastGraphHash) {
+      renderGraph();
+      lastGraphHash = newHash;
+    }
+  }
 }
 
 let firstLinkRender = true;
 
-function loadNote(name) {
+function loadNote(name, options = {}) {
   // 🧼 Blur anything currently focused (editable div, etc.)
   if (document.activeElement instanceof HTMLElement) {
     document.activeElement.blur();
@@ -122,7 +132,7 @@ function loadNote(name) {
   if (selection) selection.removeAllRanges();
 
   // 🧼 Clean empty placeholder
-  if (!notes[name] || notes[name].trim() === '✍️  start typing...') {
+  if (!notes[name] || notes[name].trim() === '✍️   start typing...') {
     notes[name] = '';
   }
 
@@ -131,11 +141,15 @@ function loadNote(name) {
 
   renderEditorLines(notes[name]);  // Render clean state
   updateNoteList();                // Update list if needed
-  saveNotes();                     // Persist
-  renderGraph();
+  saveNotes({ skipGraphUpdate: options.skipGraphUpdate });  // ✅ Pass it here
+
+  if (!options.skipGraphUpdate) {
+    renderGraph();  // ✅ Only render if allowed
+  }
+
   if (firstLinkRender) {
     firstLinkRender = false;
-    setTimeout(() => renderEditorLines(notes[name]), 0); // 🔁 re-renders fully parsed Markdown
+    setTimeout(() => renderEditorLines(notes[name]), 0); // 🔁 Markdown parsing on initial render
   }
 }
 
@@ -744,6 +758,7 @@ function extractGraphData() {
 }
 
 function renderGraph() {
+  let isDragging = false;
   const { nodes, links } = extractGraphData();
   const container = document.getElementById("graph");
   container.innerHTML = "";
@@ -802,7 +817,13 @@ nodeGroup.append("text")
   .on("click", (event, d) => loadNote(d.id));
 
 // Full group click loads note
-nodeGroup.on("click", (event, d) => loadNote(d.id));
+nodeGroup.on("click", (event, d) => {
+  if (isDragging) return; // ✅ Skip loading if a drag just happened
+
+  setTimeout(() => {
+    loadNote(d.id, { skipGraphUpdate: true });
+  }, 0);
+});
 
 // Tooltip
 nodeGroup.append("title")
@@ -820,6 +841,8 @@ nodeGroup.attr("transform", d => `translate(${d.x},${d.y})`);
 });
 
 function dragstarted(event, d) {
+  isDragging = true; // ✅ drag in progress
+
   if (!event.active) simulation.alphaTarget(0.3).restart();
   d.__lastX = d.x;
   d.__lastY = d.y;
@@ -837,6 +860,8 @@ function dragged(event, d) {
 }
 
 function dragended(event, d) {
+  isDragging = false; // ✅ drag finished
+
   if (!event.active) simulation.alphaTarget(0);
 
   d.vx = d.__vx || 0;
@@ -849,8 +874,7 @@ function dragended(event, d) {
   delete d.__vy;
   delete d.__lastX;
   delete d.__lastY;
-}
-}
+}}
 
 // ✅ Load
 const storedTheme = localStorage.getItem('theme') || 'light';
