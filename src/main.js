@@ -9,9 +9,9 @@ const app = document.getElementById('app');
 const contextMenu = document.getElementById('context-menu');
 const editorContainer = document.getElementById('editor');
 
+let suppressEditorFocus = false;
 let notes = JSON.parse(localStorage.getItem('sellira-notes'));
 let currentNote = localStorage.getItem('sellira-current');
-let suppressEditorFocus = false;
 
 if (!notes) {
   notes = {
@@ -654,8 +654,11 @@ document.getElementById("delete-note").addEventListener("click", () => {
 });
 
 window.addEventListener('beforeunload', () => {
+  // 🧼 Prevent rewriting ghost data if storage was wiped
+  if (!localStorage.getItem('sellira-notes')) return;
+
   const editableLines = Array.from(editorContainer.querySelectorAll('.editor-line.editable'));
-  const updatedLines = notes[currentNote].split('\n');
+  const updatedLines = notes[currentNote]?.split('\n') || [];
 
   editableLines.forEach(line => {
     const index = parseInt(line.dataset.line);
