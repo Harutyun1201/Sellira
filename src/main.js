@@ -84,11 +84,32 @@ marked.use({
   }]
 });
 
+document.addEventListener('mouseup', (e) => {
+  // Delay handling to allow rendering and bubbling to settle
+  setTimeout(() => {
+    const link = e.target.closest('.wikilink');
+    if (!link) return;
+
+    e.preventDefault();
+    const noteName = link.dataset.target;
+
+    if (!notes[noteName]) {
+      if (!confirm(`Note "${noteName}" does not exist. Create it?`)) return;
+      notes[noteName] = '';
+      saveNotes();
+    }
+
+    loadNote(noteName);
+  }, 0);
+});
+
 function saveNotes() {
   localStorage.setItem('sellira-notes', JSON.stringify(notes));
   localStorage.setItem('sellira-current', currentNote);
   renderGraph();
 }
+
+let firstLinkRender = true;
 
 function loadNote(name) {
   // 🧼 Blur anything currently focused (editable div, etc.)
@@ -112,6 +133,10 @@ function loadNote(name) {
   updateNoteList();                // Update list if needed
   saveNotes();                     // Persist
   renderGraph();
+  if (firstLinkRender) {
+    firstLinkRender = false;
+    setTimeout(() => renderEditorLines(notes[name]), 0); // 🔁 re-renders fully parsed Markdown
+  }
 }
 
 function renderEditorLines(content) {
@@ -325,23 +350,6 @@ lines.forEach((line, index) => {
     setTimeout(() => activateLineEdit(index, event), 0);
   }
 
-  editorContainer.querySelectorAll('a.wikilink').forEach(link => {
-    link.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopImmediatePropagation();
-      const target = e.target.dataset.target;
-      if (Object.prototype.hasOwnProperty.call(notes, target)) {
-        loadNote(target);
-      } else {
-        const create = confirm(`Note "${target}" does not exist. Create it?`);
-        if (create) {
-          notes[target] = '';
-          saveNotes();
-          loadNote(target);
-        }
-      }
-    });
-  });
 }
 
 function activateLineEdit(index, clickEvent) {
