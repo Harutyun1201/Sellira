@@ -148,9 +148,12 @@ if (lines.length === 0) {
   placeholderDiv.contentEditable = true;
 // Prevent mouse clicks from moving caret
 placeholderDiv.addEventListener('mousedown', (e) => {
-  if (placeholderDiv.classList.contains('placeholder')) {
-    e.preventDefault();
-    // Keep focus at start
+  // Only run logic if user is clicking directly on the placeholder
+  if (
+    placeholderDiv.classList.contains('placeholder') &&
+    e.target === placeholderDiv
+  ) {
+    // ⚠️ Do NOT call e.preventDefault()
     setTimeout(() => {
       const sel = window.getSelection();
       const range = document.createRange();
@@ -173,27 +176,30 @@ placeholderDiv.addEventListener('keydown', (e) => {
 });
 
   editorContainer.appendChild(placeholderDiv);
-const enforceCursorLock = () => {
-  const sel = window.getSelection();
-  if (
-    document.activeElement === placeholderDiv &&
-    placeholderDiv.classList.contains('placeholder') &&
-    sel.anchorNode === placeholderDiv &&
-    sel.anchorOffset > 0
-  ) {
-    const range = document.createRange();
-    range.setStart(placeholderDiv.firstChild, 0);
-    range.collapse(true);
-    sel.removeAllRanges();
-    sel.addRange(range);
+  let cursorLockActive = true;
+
+
+
+// 👇 Temporarily disable lock when clicking outside editor
+document.addEventListener('mousedown', (e) => {
+  const isEditorClick = editorContainer.contains(e.target);
+  const isSearchClick = e.target.id === 'searchInput';
+
+  if (!isEditorClick || isSearchClick) {
+    cursorLockActive = false;
+
+    // Restore lock shortly after user finishes interaction
+    setTimeout(() => {
+      cursorLockActive = true;
+    }, 300);
   }
-};
+});
+// Focus and set cursor at start of text
+setTimeout(() => {
+  const active = document.activeElement;
+  const isSafe = active === document.body || active === editorContainer;
 
-document.addEventListener('selectionchange', enforceCursorLock);
-
-  // Focus and set cursor at start of text
-  setTimeout(() => {
-    if (!suppressEditorFocus) {
+  if (isSafe && !suppressEditorFocus) {
     placeholderDiv.focus();
     const range = document.createRange();
     range.setStart(placeholderDiv.firstChild, 0);
@@ -201,8 +207,8 @@ document.addEventListener('selectionchange', enforceCursorLock);
     const sel = window.getSelection();
     sel.removeAllRanges();
     sel.addRange(range);
-    }
-  }, 0);
+  }
+}, 0);
 
   // On input, remove placeholder class and only the placeholder text
 const clearPlaceholderOnInput = () => {
