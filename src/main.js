@@ -84,44 +84,13 @@ marked.use({
   }]
 });
 
-document.addEventListener('mouseup', (e) => {
-  // Delay handling to allow rendering and bubbling to settle
-  setTimeout(() => {
-    const link = e.target.closest('.wikilink');
-    if (!link) return;
-
-    e.preventDefault();
-    const noteName = link.dataset.target;
-
-    if (!notes[noteName]) {
-      if (!confirm(`Note "${noteName}" does not exist. Create it?`)) return;
-      notes[noteName] = '';
-      saveNotes();
-    }
-
-    loadNote(noteName);
-  }, 0);
-});
-
-let lastGraphHash = "";
-
-function saveNotes(options = {}) {
+function saveNotes() {
   localStorage.setItem('sellira-notes', JSON.stringify(notes));
   localStorage.setItem('sellira-current', currentNote);
-
-  if (!options.skipGraphUpdate) {
-    // Prevent unnecessary graph redraws
-    const newHash = JSON.stringify(extractGraphData());
-    if (newHash !== lastGraphHash) {
-      renderGraph();
-      lastGraphHash = newHash;
-    }
-  }
+  renderGraph();
 }
 
-let firstLinkRender = true;
-
-function loadNote(name, options = {}) {
+function loadNote(name) {
   // 🧼 Blur anything currently focused (editable div, etc.)
   if (document.activeElement instanceof HTMLElement) {
     document.activeElement.blur();
@@ -132,7 +101,7 @@ function loadNote(name, options = {}) {
   if (selection) selection.removeAllRanges();
 
   // 🧼 Clean empty placeholder
-  if (!notes[name] || notes[name].trim() === '✍️   start typing...') {
+  if (!notes[name] || notes[name].trim() === '✍️  start typing...') {
     notes[name] = '';
   }
 
@@ -141,16 +110,8 @@ function loadNote(name, options = {}) {
 
   renderEditorLines(notes[name]);  // Render clean state
   updateNoteList();                // Update list if needed
-  saveNotes({ skipGraphUpdate: options.skipGraphUpdate });  // ✅ Pass it here
-
-  if (!options.skipGraphUpdate) {
-    renderGraph();  // ✅ Only render if allowed
-  }
-
-  if (firstLinkRender) {
-    firstLinkRender = false;
-    setTimeout(() => renderEditorLines(notes[name]), 0); // 🔁 Markdown parsing on initial render
-  }
+  saveNotes();                     // Persist
+  renderGraph();
 }
 
 function renderEditorLines(content) {
@@ -364,6 +325,23 @@ lines.forEach((line, index) => {
     setTimeout(() => activateLineEdit(index, event), 0);
   }
 
+  editorContainer.querySelectorAll('a.wikilink').forEach(link => {
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      const target = e.target.dataset.target;
+      if (Object.prototype.hasOwnProperty.call(notes, target)) {
+        loadNote(target);
+      } else {
+        const create = confirm(`Note "${target}" does not exist. Create it?`);
+        if (create) {
+          notes[target] = '';
+          saveNotes();
+          loadNote(target);
+        }
+      }
+    });
+  });
 }
 
 function activateLineEdit(index, clickEvent) {
@@ -758,7 +736,6 @@ function extractGraphData() {
 }
 
 function renderGraph() {
-  let isDragging = false;
   const { nodes, links } = extractGraphData();
   const container = document.getElementById("graph");
   container.innerHTML = "";
@@ -817,13 +794,7 @@ nodeGroup.append("text")
   .on("click", (event, d) => loadNote(d.id));
 
 // Full group click loads note
-nodeGroup.on("click", (event, d) => {
-  if (isDragging) return; // ✅ Skip loading if a drag just happened
-
-  setTimeout(() => {
-    loadNote(d.id, { skipGraphUpdate: true });
-  }, 0);
-});
+nodeGroup.on("click", (event, d) => loadNote(d.id));
 
 // Tooltip
 nodeGroup.append("title")
@@ -836,13 +807,15 @@ simulation.on("tick", () => {
     .attr("x2", d => d.target.x)
     .attr("y2", d => d.target.y);
 
-nodeGroup.attr("transform", d => `translate(${d.x},${d.y})`);
+nodeGroup.attr("transform", d => {
+  d.x = Math.max(30, Math.min(width - 30, d.x)); // ← increased from 20
+  d.y = Math.max(30, Math.min(height - 30, d.y));
+  return `translate(${d.x},${d.y})`;
+});
 
 });
 
 function dragstarted(event, d) {
-  isDragging = true; // ✅ drag in progress
-
   if (!event.active) simulation.alphaTarget(0.3).restart();
   d.__lastX = d.x;
   d.__lastY = d.y;
@@ -860,8 +833,6 @@ function dragged(event, d) {
 }
 
 function dragended(event, d) {
-  isDragging = false; // ✅ drag finished
-
   if (!event.active) simulation.alphaTarget(0);
 
   d.vx = d.__vx || 0;
@@ -874,7 +845,8 @@ function dragended(event, d) {
   delete d.__vy;
   delete d.__lastX;
   delete d.__lastY;
-}}
+}
+}
 
 // ✅ Load
 const storedTheme = localStorage.getItem('theme') || 'light';
