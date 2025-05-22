@@ -666,7 +666,7 @@ window.addEventListener('beforeunload', () => {
     updatedLines[index] = updatedText;
   });
 
-  const finalText = updatedLines.filter(line => line.trim() !== '').join('\n');
+  const finalText = updatedLines.join('\n');
   notes[currentNote] = finalText;
   saveNotes();
 });
