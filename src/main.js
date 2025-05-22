@@ -109,8 +109,8 @@ function renderEditorLines(content) {
   content = content || '';
   // 🧼 Full reset of editor state
   editorContainer.innerHTML = '';
-  if (document.activeElement instanceof HTMLElement) {
-    document.activeElement.blur();
+	if (document.activeElement instanceof HTMLElement) {
+		document.activeElement.blur();
   }
   const selection = window.getSelection();
   if (selection) selection.removeAllRanges();
@@ -131,35 +131,113 @@ function renderEditorLines(content) {
     return;
   }
 
+if (lines.length === 0) {
+  const placeholderDiv = document.createElement('div');
+  placeholderDiv.className = 'editor-line placeholder';
+  placeholderDiv.dataset.line = 0;
+  placeholderDiv.textContent = '✍️  start typing...';
+  placeholderDiv.contentEditable = true;
+// Prevent mouse clicks from moving caret
+placeholderDiv.addEventListener('mousedown', (e) => {
+  if (placeholderDiv.classList.contains('placeholder')) {
+    e.preventDefault();
+    // Keep focus at start
+    setTimeout(() => {
+      const sel = window.getSelection();
+      const range = document.createRange();
+      range.setStart(placeholderDiv.firstChild, 0);
+      range.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }, 0);
+  }
+});
 
-  
+// Prevent arrow keys from moving cursor
+placeholderDiv.addEventListener('keydown', (e) => {
+  if (
+    placeholderDiv.classList.contains('placeholder') &&
+    ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key)
+  ) {
+    e.preventDefault();
+  }
+});
 
-  if (lines.length === 0) {
-    const placeholderDiv = document.createElement('div');
-    placeholderDiv.className = 'editor-line placeholder';
-    placeholderDiv.dataset.line = 0;
-    placeholderDiv.textContent = '✍️ start typing...';
-    placeholderDiv.contentEditable = true;
+  editorContainer.appendChild(placeholderDiv);
+const enforceCursorLock = () => {
+  const sel = window.getSelection();
+  if (
+    document.activeElement === placeholderDiv &&
+    placeholderDiv.classList.contains('placeholder') &&
+    sel.anchorNode === placeholderDiv &&
+    sel.anchorOffset > 0
+  ) {
+    const range = document.createRange();
+    range.setStart(placeholderDiv.firstChild, 0);
+    range.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(range);
+  }
+};
 
-    placeholderDiv.addEventListener('mousedown', (e) => {
-      e.preventDefault();
-      setTimeout(() => activateLineEdit(0, e), 0);
-    });
+document.addEventListener('selectionchange', enforceCursorLock);
 
-    placeholderDiv.addEventListener('blur', () => {
-      const value = placeholderDiv.textContent.trim();
-      if (value === '' || value === '✍️ start typing...') {
-        renderEditorLines('');
-      } else {
-        notes[currentNote] = value;
-        saveNotes();
-        renderEditorLines(notes[currentNote]);
-      }
-    });
+  // Focus and set cursor at start of text
+  setTimeout(() => {
+    placeholderDiv.focus();
+    const range = document.createRange();
+    range.setStart(placeholderDiv.firstChild, 0);
+    range.collapse(true);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+  }, 0);
 
-    editorContainer.appendChild(placeholderDiv);
+  // On input, remove placeholder class and only the placeholder text
+const clearPlaceholderOnInput = () => {
+  if (!placeholderDiv.classList.contains('placeholder')) return;
+
+  // Wait for the character to appear in the DOM
+  setTimeout(() => {
+    const typed = placeholderDiv.textContent.replace('✍️  start typing...', '').trim();
+
+    if (!typed) return;
+
+    // Save typed char and fully re-render in editable mode
+    notes[currentNote] = typed;
+    saveNotes();
+    renderEditorLines(notes[currentNote]);
+
+    // Immediately activate editing on line 0 with caret at end
+    setTimeout(() => {
+      activateLineEdit(0, { __caretOffset: typed.length });
+    }, 0);
+  }, 0);
+};
+
+  placeholderDiv.addEventListener('input', clearPlaceholderOnInput);
+
+placeholderDiv.addEventListener('blur', () => {
+  const value = placeholderDiv.textContent.trim();
+
+  // If it's still the placeholder (class + content), re-render it as placeholder
+  if (
+    placeholderDiv.classList.contains('placeholder') ||
+    value === '' ||
+    value === '✍️  start typing...'
+  ) {
+    renderEditorLines('');
     return;
   }
+
+  // Else, treat it as real content
+  notes[currentNote] = value;
+  saveNotes();
+  renderEditorLines(notes[currentNote]);
+});
+
+  return;
+}
 
 lines.forEach((line, index) => {
     const lineDiv = document.createElement('div');

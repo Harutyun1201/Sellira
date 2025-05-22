@@ -308,3 +308,9 @@ mark {
   margin-bottom: 1px;
 }
 
+.editor-line.placeholder {
+  color: var(--text);
+  opacity: 0.4;
+  font-style: italic;
+}
+
