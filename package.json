@@ -9,6 +9,7 @@
     "vite": "^6.3.5"
   },
   "dependencies": {
+    "d3": "^7.9.0",
     "marked": "^15.0.11"
   },
   "name": "sellira",
@@ -18,4 +19,3 @@
   "license": "ISC",
   "description": "Sellira – a minimalist markdown note-taking app"
 }
-

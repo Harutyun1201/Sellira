@@ -1,4 +1,5 @@
 import { marked } from 'marked';
+import * as d3 from 'd3';
 
 const noteList = document.getElementById('noteList');
 const noteTitle = document.getElementById('noteTitle');
@@ -46,8 +47,7 @@ Sellira is a minimalist, Markdown-based note-taking app. Here's how to get start
 **Think. Write. Link. ✨**`
   };
   currentNote = "Manual";
-  localStorage.setItem('sellira-notes', JSON.stringify(notes));
-  localStorage.setItem('sellira-current', currentNote);
+  saveNotes();
 }
 
 let selectedNote = null;
@@ -81,6 +81,7 @@ marked.use({
 function saveNotes() {
   localStorage.setItem('sellira-notes', JSON.stringify(notes));
   localStorage.setItem('sellira-current', currentNote);
+  renderGraph();
 }
 
 function loadNote(name) {
@@ -104,6 +105,7 @@ function loadNote(name) {
   renderEditorLines(notes[name]);  // Render clean state
   updateNoteList();                // Update list if needed
   saveNotes();                     // Persist
+  renderGraph();
 }
 
 function renderEditorLines(content) {
@@ -496,6 +498,7 @@ function renderFilteredNoteList(query) {
 function updateNoteList() {
   const query = (searchInput?.value || '').toLowerCase();
   renderFilteredNoteList(query);
+  renderGraph();
 }
 
 function setTheme(mode) {
@@ -671,9 +674,143 @@ window.addEventListener('beforeunload', () => {
   saveNotes();
 });
 
+function extractGraphData() {
+  const nodes = [];
+  const links = [];
+
+  const existingNotes = Object.keys(notes);
+  const nameSet = new Set(existingNotes);
+
+  // Add only existing notes as nodes
+  existingNotes.forEach(name => {
+    nodes.push({ id: name });
+  });
+
+  // Add only links between existing notes
+  existingNotes.forEach(source => {
+    const content = notes[source];
+    const linkRegex = /\[\[([^\]]+)\]\]/g;
+    let match;
+    while ((match = linkRegex.exec(content)) !== null) {
+      const target = match[1];
+      if (nameSet.has(target)) {
+        links.push({ source, target });
+      }
+    }
+  });
+
+  return { nodes, links };
+}
+
+function renderGraph() {
+  const { nodes, links } = extractGraphData();
+  const container = document.getElementById("graph");
+  container.innerHTML = "";
+
+  const width = container.clientWidth;
+  const height = container.clientHeight;
+
+  const svg = d3.select(container)
+    .append("svg")
+    .attr("width", width)
+    .attr("height", height);
+
+const simulation = d3.forceSimulation(nodes)
+  .force("link", d3.forceLink(links).id(d => d.id).distance(140).strength(0.05)) // softer, longer springs
+  .force("charge", d3.forceManyBody().strength(-150)) // gentler repulsion
+  .force("center", d3.forceCenter(width / 2, height / 2))
+  .velocityDecay(0.25) // slow down less aggressively
+  .alphaDecay(0.01); // slower cooling for more natural motion
+
+  const link = svg.append("g")
+    .attr("class", "links")
+    .selectAll("line")
+    .data(links)
+    .enter().append("line")
+    .attr("class", "link");
+
+const nodeGroup = svg.append("g")
+  .attr("class", "nodes")
+  .selectAll("g")
+  .data(nodes)
+  .enter().append("g")
+  .call(d3.drag()
+    .on("start", dragstarted)
+    .on("drag", dragged)
+    .on("end", dragended));
+
+// Circle (node)
+nodeGroup.append("circle")
+  .attr("class", "graph-node")
+  .attr("r", 28)
+  .on("click", (event, d) => loadNote(d.id));
+
+// Label below node
+nodeGroup.append("text")
+  .attr("class", "graph-label")
+  .attr("dy", "2.1em")
+  .text(d => d.id)
+  .on("click", (event, d) => loadNote(d.id));
+
+// Full group click loads note
+nodeGroup.on("click", (event, d) => loadNote(d.id));
+
+// Tooltip
+nodeGroup.append("title")
+  .text(d => `Click to open "${d.id}"`);
+
+simulation.on("tick", () => {
+  link
+    .attr("x1", d => d.source.x)
+    .attr("y1", d => d.source.y)
+    .attr("x2", d => d.target.x)
+    .attr("y2", d => d.target.y);
+
+nodeGroup.attr("transform", d => {
+  d.x = Math.max(30, Math.min(width - 30, d.x)); // ← increased from 20
+  d.y = Math.max(30, Math.min(height - 30, d.y));
+  return `translate(${d.x},${d.y})`;
+});
+
+});
+
+function dragstarted(event, d) {
+  if (!event.active) simulation.alphaTarget(0.3).restart();
+  d.__lastX = d.x;
+  d.__lastY = d.y;
+  d.fx = d.x;
+  d.fy = d.y;
+}
+
+function dragged(event, d) {
+  d.__vx = event.x - d.__lastX;
+  d.__vy = event.y - d.__lastY;
+  d.fx = event.x;
+  d.fy = event.y;
+  d.__lastX = event.x;
+  d.__lastY = event.y;
+}
+
+function dragended(event, d) {
+  if (!event.active) simulation.alphaTarget(0);
+
+  d.vx = d.__vx || 0;
+  d.vy = d.__vy || 0;
+
+  d.fx = null;
+  d.fy = null;
+
+  delete d.__vx;
+  delete d.__vy;
+  delete d.__lastX;
+  delete d.__lastY;
+}
+}
 
 // ✅ Load
 const storedTheme = localStorage.getItem('theme') || 'light';
 setTheme(storedTheme);
 loadNote(currentNote);
 
+// ✅ Render Graph View after initial note is loaded
+renderGraph();
