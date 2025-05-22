@@ -16,7 +16,7 @@ let currentNote = localStorage.getItem('sellira-current');
 
 if (!notes) {
   notes = {
-    "Manual": `# 📘 Welcome to Sellira
+  "Manual" : `# 📘 Welcome to Sellira
 
 Sellira is a minimalist, Markdown-based note-taking app. Here's how to get started:
 
@@ -28,12 +28,18 @@ Sellira is a minimalist, Markdown-based note-taking app. Here's how to get start
 - Right-click the note title in the sidebar and select **Rename**.
 - Enter the new name and press **Enter** to save.
 
-## 🗑️ Deleting Notes
+## 🗑️  Deleting Notes
 - Right-click the note title in the sidebar and select **Delete**.
 - Confirm the deletion when prompted.
 
 ## 🔗 Linking Notes
-- Use \`[[Note Name]]\` syntax to link the notes
+- Use \`[[Note Name]]\` syntax to link between notes.
+- Linked notes automatically appear as connections in the graph view.
+
+## 🧠 Graph View
+- The graph on the right shows how your notes are connected.
+- Click any node in the graph to open that note.
+- The graph updates live as you create, rename, or delete notes.
 
 ## 🎨 Themes
 - Toggle between light and dark mode using the \`☀️  Light Mode / 🌙 Dark Mode\` button.
@@ -44,8 +50,8 @@ Sellira is a minimalist, Markdown-based note-taking app. Here's how to get start
 ## 📌 Tip
 - Notes are saved automatically and stored in your browser (offline friendly).
 
-**Think. Write. Link. ✨**`
-  };
+**Think. Write. Link. Visualize. ✨**`
+};
   currentNote = "Manual";
   saveNotes();
 }
@@ -710,10 +716,18 @@ function renderGraph() {
   const width = container.clientWidth;
   const height = container.clientHeight;
 
-  const svg = d3.select(container)
-    .append("svg")
-    .attr("width", width)
-    .attr("height", height);
+const svg = d3.select(container)
+  .append("svg")
+  .attr("width", width)
+  .attr("height", height)
+  .call(d3.zoom()
+    .scaleExtent([0.1, 3]) // Min and max zoom
+    .on("zoom", (event) => {
+      g.attr("transform", event.transform);
+    })
+  );
+
+const g = svg.append("g"); // Group that will be zoomed/panned
 
 const simulation = d3.forceSimulation(nodes)
   .force("link", d3.forceLink(links).id(d => d.id).distance(140).strength(0.05)) // softer, longer springs
@@ -722,14 +736,14 @@ const simulation = d3.forceSimulation(nodes)
   .velocityDecay(0.25) // slow down less aggressively
   .alphaDecay(0.01); // slower cooling for more natural motion
 
-  const link = svg.append("g")
-    .attr("class", "links")
-    .selectAll("line")
-    .data(links)
-    .enter().append("line")
-    .attr("class", "link");
+const link = g.append("g")
+  .attr("class", "links")
+  .selectAll("line")
+  .data(links)
+  .enter().append("line")
+  .attr("class", "link");
 
-const nodeGroup = svg.append("g")
+const nodeGroup = g.append("g")
   .attr("class", "nodes")
   .selectAll("g")
   .data(nodes)

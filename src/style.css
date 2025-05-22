@@ -357,3 +357,10 @@ mark {
   stroke-width: 1.5;
 }
 
+#graph svg {
+  cursor: grab;
+}
+#graph svg:active {
+  cursor: grabbing;
+}
+
