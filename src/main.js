@@ -93,11 +93,11 @@ document.addEventListener('mouseup', (e) => {
     e.preventDefault();
     const noteName = link.dataset.target;
 
-    if (!notes[noteName]) {
-      if (!confirm(`Note "${noteName}" does not exist. Create it?`)) return;
-      notes[noteName] = '';
-      saveNotes();
-    }
+    if (!Object.prototype.hasOwnProperty.call(notes, noteName)) {
+    if (!confirm(`Note "${noteName}" does not exist. Create it?`)) return;
+    notes[noteName] = '';
+    saveNotes();
+}
 
     loadNote(noteName);
   }, 0);
@@ -696,9 +696,20 @@ document.getElementById("rename-note").addEventListener("click", () => {
     return;
   }
 
+  
   const content = notes[selectedNote];
   notes[newName] = content;
   delete notes[selectedNote];
+
+  // 🔁 Update backlinks in other notes
+  Object.keys(notes).forEach(note => {
+    if (note === newName) return;
+    const updated = notes[note].replaceAll(`[[${selectedNote}]]`, `[[${newName}]]`);
+    if (updated !== notes[note]) {
+      notes[note] = updated;
+    }
+  });
+
 
   saveNotes();
 
