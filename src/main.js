@@ -167,11 +167,32 @@ placeholderDiv.addEventListener('mousedown', (e) => {
 
 // Prevent arrow keys from moving cursor
 placeholderDiv.addEventListener('keydown', (e) => {
-  if (
-    placeholderDiv.classList.contains('placeholder') &&
-    ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key)
-  ) {
+  const isPlaceholder = placeholderDiv.classList.contains('placeholder');
+
+  if (!isPlaceholder) return;
+
+  const blockKeys = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', ' '];
+
+  if (blockKeys.includes(e.key)) {
     e.preventDefault();
+    return;
+  }
+
+  if (e.key === 'Enter') {
+    e.preventDefault();
+
+    // Trigger transition into real editable line mode
+    setTimeout(() => {
+      const typed = ''; // no content yet
+      notes[currentNote] = typed;
+      saveNotes();
+      renderEditorLines(typed);
+
+      // focus new line immediately
+      setTimeout(() => {
+        activateLineEdit(0, { __caretOffset: 0 });
+      }, 0);
+    }, 0);
   }
 });
 
