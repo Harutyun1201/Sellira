@@ -807,11 +807,7 @@ simulation.on("tick", () => {
     .attr("x2", d => d.target.x)
     .attr("y2", d => d.target.y);
 
-nodeGroup.attr("transform", d => {
-  d.x = Math.max(30, Math.min(width - 30, d.x)); // ← increased from 20
-  d.y = Math.max(30, Math.min(height - 30, d.y));
-  return `translate(${d.x},${d.y})`;
-});
+nodeGroup.attr("transform", d => `translate(${d.x},${d.y})`);
 
 });
 
