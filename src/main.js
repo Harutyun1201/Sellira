@@ -373,35 +373,66 @@ function activateLineEdit(index, clickEvent) {
     }
 
     // ✅ BACKSPACE at start
-    if (e.key === 'Backspace' && cursorPos === 0 && index > 0) {
-      e.preventDefault();
+if (e.key === 'Backspace') {
+  const text = editableDiv.textContent;
+  const selection = window.getSelection();
+  const range = selection.getRangeAt(0);
+  const cursorPos = range.startOffset;
+  const isAllSelected = selection.toString() === text;
 
-      const updatedLines = notes[currentNote].split('\n');
-      const updatedText = editableDiv.textContent;
-      updatedLines[index] = updatedText;
+  const updatedLines = notes[currentNote].split('\n');
 
-      const currentLine = updatedLines[index];
-      const previousLine = updatedLines[index - 1];
+  // ✅ Case 1: Full line selected or text becomes empty → delete line
+  if ((text.trim() === '' || isAllSelected) && updatedLines.length > 1) {
+    e.preventDefault();
 
-      const merged = previousLine + currentLine;
-      const offsetAfterMerge = merged.length - currentLine.length;
+    updatedLines.splice(index, 1); // remove this line
+    notes[currentNote] = updatedLines.join('\n');
+    saveNotes();
 
-      updatedLines[index - 1] = merged;
-      updatedLines.splice(index, 1);
-      notes[currentNote] = updatedLines.join('\n');
-      saveNotes();
+    skipBlur = true;
+    editableDiv.onblur = null;
+    editableDiv.remove();
 
-      skipBlur = true;
-      editableDiv.onblur = null;
-      editableDiv.remove();
+    renderEditorLines(notes[currentNote]);
 
-      renderEditorLines(notes[currentNote]);
+    // Focus previous or next line
+    const newIndex = index > 0 ? index - 1 : 0;
+    const newOffset = notes[currentNote].split('\n')[newIndex]?.length || 0;
 
-      setTimeout(() => {
-        activateLineEdit(index - 1, { __caretOffset: offsetAfterMerge });
-      }, 0);
-    }
-  });
+    setTimeout(() => {
+      activateLineEdit(newIndex, { __caretOffset: newOffset });
+    }, 0);
+    return;
+  }
+
+  // ✅ Case 2: Cursor at start → merge with previous line
+  if (cursorPos === 0 && index > 0) {
+    e.preventDefault();
+
+    const currentLine = text;
+    const previousLine = updatedLines[index - 1];
+
+    const merged = previousLine + currentLine;
+    const offsetAfterMerge = previousLine.length;
+
+    updatedLines[index - 1] = merged;
+    updatedLines.splice(index, 1);
+    notes[currentNote] = updatedLines.join('\n');
+    saveNotes();
+
+    skipBlur = true;
+    editableDiv.onblur = null;
+    editableDiv.remove();
+
+    renderEditorLines(notes[currentNote]);
+
+    setTimeout(() => {
+      activateLineEdit(index - 1, { __caretOffset: offsetAfterMerge });
+    }, 0);
+  }
+}
+});
 
   editableDiv.addEventListener('blur', () => {
     if (skipBlur) return;
