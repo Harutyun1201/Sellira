@@ -642,17 +642,18 @@ document.getElementById("delete-note").addEventListener("click", () => {
 });
 
 window.addEventListener('beforeunload', () => {
-  const editable = editorContainer.querySelector('[contenteditable="true"]');
-  if (editable) {
-    const index = parseInt(editable.dataset.line);
-    const updatedText = editable.textContent.trim();
-    const updatedLines = notes[currentNote].split('\n');
+  const editableLines = Array.from(editorContainer.querySelectorAll('.editor-line.editable'));
+  const updatedLines = notes[currentNote].split('\n');
+
+  editableLines.forEach(line => {
+    const index = parseInt(line.dataset.line);
+    const updatedText = line.textContent.trim();
     updatedLines[index] = updatedText;
-    if (updatedText && updatedText !== '✍️ start typing...') {
-    notes[currentNote] = updatedLines.join('\n');
-    saveNotes();
-  }
-  }
+  });
+
+  const finalText = updatedLines.filter(line => line.trim() !== '').join('\n');
+  notes[currentNote] = finalText;
+  saveNotes();
 });
 
 
