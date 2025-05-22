@@ -133,7 +133,6 @@ function loadNote(name) {
   renderEditorLines(notes[name]);  // Render clean state
   updateNoteList();                // Update list if needed
   saveNotes();                     // Persist
-  renderGraph();
   if (firstLinkRender) {
     firstLinkRender = false;
     setTimeout(() => renderEditorLines(notes[name]), 0); // 🔁 re-renders fully parsed Markdown
@@ -172,22 +171,37 @@ if (lines.length === 0) {
   placeholderDiv.dataset.line = 0;
   placeholderDiv.textContent = '✍️  start typing...';
   placeholderDiv.contentEditable = true;
-// Prevent mouse clicks from moving caret
+
+  // ✅ Append to DOM ONCE here
+  editorContainer.appendChild(placeholderDiv);
+
+  // 🖱️ On click, try to place caret at start
 placeholderDiv.addEventListener('mousedown', (e) => {
-  // Only run logic if user is clicking directly on the placeholder
   if (
     placeholderDiv.classList.contains('placeholder') &&
     e.target === placeholderDiv
   ) {
-    // ⚠️ Do NOT call e.preventDefault()
-    setTimeout(() => {
-      const sel = window.getSelection();
-      const range = document.createRange();
-      range.setStart(placeholderDiv.firstChild, 0);
+    e.preventDefault(); // ✨ Critical: prevent default behavior that triggers blur
+
+    let textNode = placeholderDiv.firstChild;
+
+    if (!textNode || textNode.nodeType !== Node.TEXT_NODE) {
+      textNode = document.createTextNode('');
+      placeholderDiv.innerHTML = '';
+      placeholderDiv.appendChild(textNode);
+    }
+
+    const sel = window.getSelection();
+    const range = document.createRange();
+
+    try {
+      range.setStart(textNode, 0);
       range.collapse(true);
       sel.removeAllRanges();
       sel.addRange(range);
-    }, 0);
+    } catch (err) {
+      console.warn("⚠️ Could not set range:", err.message);
+    }
   }
 });
 
@@ -253,7 +267,7 @@ setTimeout(() => {
     range.collapse(true);
     const sel = window.getSelection();
     sel.removeAllRanges();
-    sel.addRange(range);
+    //sel.addRange(range);
   }
 }, 0);
 
@@ -539,7 +553,6 @@ function renderFilteredNoteList(query) {
 function updateNoteList() {
   const query = (searchInput?.value || '').toLowerCase();
   renderFilteredNoteList(query);
-  renderGraph();
 }
 
 function setTheme(mode) {
@@ -857,5 +870,3 @@ const storedTheme = localStorage.getItem('theme') || 'light';
 setTheme(storedTheme);
 loadNote(currentNote);
 
-// ✅ Render Graph View after initial note is loaded
-renderGraph();
