@@ -11,6 +11,7 @@ const editorContainer = document.getElementById('editor');
 
 let notes = JSON.parse(localStorage.getItem('sellira-notes'));
 let currentNote = localStorage.getItem('sellira-current');
+let suppressEditorFocus = false;
 
 if (!notes) {
   notes = {
@@ -184,6 +185,7 @@ document.addEventListener('selectionchange', enforceCursorLock);
 
   // Focus and set cursor at start of text
   setTimeout(() => {
+    if (!suppressEditorFocus) {
     placeholderDiv.focus();
     const range = document.createRange();
     range.setStart(placeholderDiv.firstChild, 0);
@@ -191,6 +193,7 @@ document.addEventListener('selectionchange', enforceCursorLock);
     const sel = window.getSelection();
     sel.removeAllRanges();
     sel.addRange(range);
+    }
   }, 0);
 
   // On input, remove placeholder class and only the placeholder text
@@ -556,11 +559,20 @@ document.addEventListener('keydown', (e) => {
     loadNote(name);
   }
 
-  if (e.ctrlKey && e.key === '/') {
-    e.preventDefault();
+if (e.ctrlKey && e.code === 'Slash') {
+  e.preventDefault();
+  suppressEditorFocus = true;
+
+  setTimeout(() => {
     searchInput.focus();
     searchInput.select();
-  }
+
+    // Clear the flag shortly after
+    setTimeout(() => {
+      suppressEditorFocus = false;
+    }, 50);
+  }, 0);
+}
 });
 
 searchInput.addEventListener('input', () => {
