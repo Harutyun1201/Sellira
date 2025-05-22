@@ -256,20 +256,42 @@ document.addEventListener('mousedown', (e) => {
   }
 });
 // Focus and set cursor at start of text
-setTimeout(() => {
-  const active = document.activeElement;
-  const isSafe = active === document.body || active === editorContainer;
+function focusPlaceholderSafely() {
+  const doFocus = () => {
+    const isSafe = document.activeElement === document.body || document.activeElement === editorContainer;
+    const isPageVisible = document.visibilityState === 'visible';
+    const isAttached = document.body.contains(placeholderDiv);
 
-  if (isSafe && !suppressEditorFocus) {
+    if (!isSafe || !isPageVisible || !isAttached) return;
+
     placeholderDiv.focus();
+
+    let textNode = placeholderDiv.firstChild;
+    if (!textNode || textNode.nodeType !== Node.TEXT_NODE) {
+      textNode = document.createTextNode('');
+      placeholderDiv.innerHTML = '';
+      placeholderDiv.appendChild(textNode);
+    }
+
+    if (!document.body.contains(textNode)) return;
+
     const range = document.createRange();
-    range.setStart(placeholderDiv.firstChild, 0);
+    range.setStart(textNode, 0);
     range.collapse(true);
+
     const sel = window.getSelection();
     sel.removeAllRanges();
-    //sel.addRange(range);
+    sel.addRange(range);
+  };
+
+  if ('requestIdleCallback' in window) {
+    requestIdleCallback(doFocus);
+  } else {
+    requestAnimationFrame(doFocus);
   }
-}, 0);
+}
+
+focusPlaceholderSafely();
 
   // On input, remove placeholder class and only the placeholder text
 const clearPlaceholderOnInput = () => {
@@ -370,6 +392,7 @@ function activateLineEdit(index, clickEvent) {
   const original = notes[currentNote].split('\n')[index] || '';
   const lineDivs = editorContainer.querySelectorAll('.editor-line');
   const oldDiv = lineDivs[index];
+  if (!(oldDiv instanceof Node)) return; // 🛑 Prevent replaceChild error if node missing
 
   const editableDiv = document.createElement('div');
   editableDiv.className = 'editor-line editable';
